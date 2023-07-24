@@ -114,7 +114,7 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
                     if 日期 == 15:
                         time.sleep(1)
-                time.sleep(0.5)
+                time.sleep(1)
         else:
             for 月份 in range(1, 本月月份 + 1):
                 _, 當月天數 = calendar.monthrange(年份, 月份)
@@ -123,7 +123,7 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
                     if 日期 == 15:
                         time.sleep(1)
-                time.sleep(0.5)
+                time.sleep(1)
   
 def 當月營收(西元年份, 月份, ProxyIP):
     if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月營業收入統計.csv"):
