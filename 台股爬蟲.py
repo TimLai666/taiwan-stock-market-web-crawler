@@ -3,14 +3,31 @@ import requests
 from io import StringIO
 import time, datetime
 import os
+import glob
 
 def 儲存csv檔(df, 年份, 月份, 資料種類):
     if df.empty != True:
         if 資料種類 == "每月營收":
-                df.to_csv(str(年份) + "年" + str(月份) + "月營業收入統計.csv")
+                df.to_csv("data/" + str(年份) + "年" + str(月份) + "月營業收入統計.csv")
                 print(年份,",",月份)
 
+def 合併csv檔(資料種類):
+    if 資料種類 == "每月營收":
+        要合併的檔案 = glob.glob("data/*月營業收入統計.csv")
+        df = pd.concat(
+            map(pd.read_csv, 要合併的檔案), ignore_index = True
+        )
+
+        # 去除不需要的東西
+        df = df.drop(["Unnamed: 0", "備註"],axis = "columns")
+
+        df.to_csv("每月營業收入統計.csv")
+
 def 取得歷史資料(今年年份, 本月月份):
+    # 建立存檔案的資料夾
+    if not os.path.exists("data/"):
+        os.mkdir("data/")
+
     print("正在取得每月營收資料...")
     for 年份 in range(2003, 今年年份 + 1):
         if 年份 != 今年年份:
@@ -24,9 +41,8 @@ def 取得歷史資料(今年年份, 本月月份):
         # 偽停頓
         #time.sleep(0.5) 
   
-
 def 當月營收(西元年份, 月份):
-    if not os.path.isfile(str(西元年份) + "年" + str(月份) + "月營業收入統計.csv"):
+    if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月營業收入統計.csv"):
         # 假如是西元，轉成民國
         if 西元年份 > 1990:
             民國年份 = 西元年份 - 1911
@@ -102,5 +118,7 @@ def 當月營收(西元年份, 月份):
 今年年份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%Y"))
 本月月份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%m"))
 取得歷史資料(今年年份, 本月月份)
+print("正在合併資料...")
+合併csv檔("每月營收")
 print("資料更新成功")
 input("按enter鍵結束程式")
