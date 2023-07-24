@@ -18,7 +18,7 @@ def 取得ProxyIP():
                 待驗證的IP = file.read().splitlines()
             file.close()
     
-        if len(待驗證的IP) < 10:
+        if len(待驗證的IP) < 5:
             response = requests.get("https://www.sslproxies.org/")
             response1 = requests.get("https://free-proxy-list.net/")
             response2 = requests.get("https://www.socks-proxy.net/")
@@ -42,7 +42,7 @@ def 取得ProxyIP():
                 print("成功")
             except:
                 print("失敗")
-            time.sleep(0.2)
+            time.sleep(0.1)
     
     # 把已驗證的ip存到檔案
     with open("data/proxy_list.txt", 'w') as file:
@@ -113,8 +113,8 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
                     df = 個股當日資料(年份, 月份, 日期, ProxyIP)
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
                     if 日期 == 15:
-                        time.sleep(3)
-                time.sleep(1)
+                        time.sleep(1)
+                time.sleep(0.5)
         else:
             for 月份 in range(1, 本月月份 + 1):
                 _, 當月天數 = calendar.monthrange(年份, 月份)
@@ -122,8 +122,8 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
                     df = 個股當日資料(年份, 月份, 日期, ProxyIP)
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
                     if 日期 == 15:
-                        time.sleep(3)
-                time.sleep(1)
+                        time.sleep(1)
+                time.sleep(0.5)
   
 def 當月營收(西元年份, 月份, ProxyIP):
     if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月營業收入統計.csv"):
@@ -184,7 +184,7 @@ def 當月營收(西元年份, 月份, ProxyIP):
     return df
 
 def 個股當日資料(西元年份, 月份, 日期, ProxyIP):
-    if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月"+ str(日期) +"個股資料.csv"):
+    if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月"+ str(日期) +"日個股資料.csv"):
         if len(str(月份)) < 2:
             二位數月份 = "0" + str(月份)
         else:
