@@ -183,7 +183,7 @@ def 當月營收(西元年份, 月份, ProxyIP):
     return df
 
 def 個股當日資料(西元年份, 月份, 日期, ProxyIP):
-    if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月"+ str(日期) +"個股每日資料.csv"):
+    if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月"+ str(日期) +"個股資料.csv"):
         if len(str(月份)) < 2:
             二位數月份 = "0" + str(月份)
         else:
