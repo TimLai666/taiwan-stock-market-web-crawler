@@ -10,6 +10,7 @@ import re
 
 def 取得ProxyIP():
     已驗證的IP = []
+    待驗證的IP = []
     while len(已驗證的IP) < 1:
         print("正在取得可用IP...")
         if os.path.isfile("data/proxy_list.txt"):
