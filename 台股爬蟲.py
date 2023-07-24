@@ -7,6 +7,7 @@ import os
 import glob
 import requests
 import re
+import random
 
 def 取得ProxyIP():
     已驗證的IP = []
@@ -97,11 +98,13 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
         if 年份 != 今年年份:
             for 月份 in range(1, 12 + 1):
                 df = 當月營收(年份, 月份, ProxyIP)
-                儲存csv檔(df, 年份, 月份, 0, "每月營收")        
+                儲存csv檔(df, 年份, 月份, 0, "每月營收") 
+                time.sleep(random.uniform(0.1, 2))       
         else:
             for 月份 in range(1, 本月月份):
                 df = 當月營收(年份, 月份, ProxyIP)
                 儲存csv檔(df, 年份, 月份, 0, "每月營收")
+                time.sleep(random.uniform(0.1, 2))
         
     print("正在取得個股每日資料...")
     for 年份 in range(2006, 今年年份 + 1):
@@ -111,18 +114,16 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
                 for 日期 in range (1, 當月天數 + 1):
                     df = 個股當日資料(年份, 月份, 日期, ProxyIP)
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
-                    if 日期 == 15:
-                        time.sleep(1)
-                time.sleep(1)
+                    time.sleep(random.uniform(2, 5))
+                time.sleep(random.uniform(0.1, 2))
         else:
             for 月份 in range(1, 本月月份 + 1):
                 _, 當月天數 = calendar.monthrange(年份, 月份)
                 for 日期 in range (1, 今天日期):
                     df = 個股當日資料(年份, 月份, 日期, ProxyIP)
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
-                    if 日期 == 15:
-                        time.sleep(1)
-                time.sleep(1)
+                    time.sleep(random.uniform(2, 5))
+                time.sleep(random.uniform(0.1, 2))
   
 def 當月營收(西元年份, 月份, ProxyIP):
     if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月營業收入統計.csv"):
