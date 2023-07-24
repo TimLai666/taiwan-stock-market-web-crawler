@@ -42,7 +42,6 @@ def 取得ProxyIP():
                 print("成功")
             except:
                 print("失敗")
-            time.sleep(0.1)
     
     # 把已驗證的ip存到檔案
     with open("data/proxy_list.txt", 'w') as file:
