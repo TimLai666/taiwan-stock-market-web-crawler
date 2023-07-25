@@ -34,28 +34,29 @@ def 取得ProxyIP():
 
         print("正在驗證IP...")
         for ip in 待驗證的IP:
-            print(ip, end = " ")
+            print(ip, end = "--")
             try:
                 result = requests.get(
                     'https://www.twse.com.tw/zh/index.html',proxies={'http': ip, 'https': ip},timeout= 3
                     )
                 已驗證的IP.append(ip)
-                print("成功")
+                print("有效")
+                
+                # 把已驗證的ip存到檔案
+                with open("data/proxy_list.txt", 'w') as file:
+                    for ip in 已驗證的IP:
+                        file.write(ip + '\n')
+                file.close()
             except:
-                print("失敗")
+                print("無效")
     
-    # 把已驗證的ip存到檔案
-    with open("data/proxy_list.txt", 'w') as file:
-        for ip in 已驗證的IP:
-            file.write(ip + '\n')
-    file.close()
-
     return 已驗證的IP
 
 def 重新取得IP():
     print("正在重新取得IP...")
-    if os.path.isfile("data/proxy_list.txt"):
-        os.remove("data/proxy_list.txt")
+    with open("data/proxy_list.txt", 'w') as file:
+        file.write("")
+    file.close()
     新IP = 取得ProxyIP()
     return 新IP
 
@@ -98,13 +99,11 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
         if 年份 != 今年年份:
             for 月份 in range(1, 12 + 1):
                 df = 當月營收(年份, 月份, ProxyIP)
-                儲存csv檔(df, 年份, 月份, 0, "每月營收") 
-                time.sleep(random.uniform(0.1, 2))       
+                儲存csv檔(df, 年份, 月份, 0, "每月營收")        
         else:
             for 月份 in range(1, 本月月份):
                 df = 當月營收(年份, 月份, ProxyIP)
                 儲存csv檔(df, 年份, 月份, 0, "每月營收")
-                time.sleep(random.uniform(0.1, 2))
         
     print("正在取得個股每日資料...")
     for 年份 in range(2006, 今年年份 + 1):
@@ -114,16 +113,12 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
                 for 日期 in range (1, 當月天數 + 1):
                     df = 個股當日資料(年份, 月份, 日期, ProxyIP)
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
-                    time.sleep(random.uniform(2, 5))
-                time.sleep(random.uniform(0.1, 2))
         else:
             for 月份 in range(1, 本月月份 + 1):
                 _, 當月天數 = calendar.monthrange(年份, 月份)
                 for 日期 in range (1, 今天日期):
                     df = 個股當日資料(年份, 月份, 日期, ProxyIP)
                     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
-                    time.sleep(random.uniform(2, 5))
-                time.sleep(random.uniform(0.1, 2))
   
 def 當月營收(西元年份, 月份, ProxyIP):
     if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月營業收入統計.csv"):
@@ -145,6 +140,7 @@ def 當月營收(西元年份, 月份, ProxyIP):
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
             try:
+                time.sleep(random.uniform(0.1, 7))
                 r = requests.get(
                     url, headers = headers, proxies = {'http': f'{proxy_ip}', 'https': f'{proxy_ip}'}
                     )
@@ -201,6 +197,7 @@ def 個股當日資料(西元年份, 月份, 日期, ProxyIP):
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
             try:
+             time.sleep(random.uniform(0.1, 7))
              r = requests.get(
                  url, headers = headers, proxies = {'http': f'{proxy_ip}', 'https': f'{proxy_ip}'}
                  )
