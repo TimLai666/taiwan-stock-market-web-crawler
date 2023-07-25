@@ -8,8 +8,9 @@ import glob
 import requests
 import re
 import random
+import concurrent.futures
 
-def 取得ProxyIP():
+def 取得ProxyIP(cpu線程):
     已驗證的IP = []
     待驗證的IP = []
     while len(已驗證的IP) < 1:
@@ -35,24 +36,43 @@ def 取得ProxyIP():
             待驗證的IP = list(set(待驗證的IP)) # 清除重複的ip
 
         print("正在驗證IP...")
-        for ip in 待驗證的IP:
-            print(ip, end = "--")
-            try:
-                result = requests.get(
-                    'https://www.twse.com.tw/zh/index.html',proxies={'http': ip, 'https': ip},timeout= 3
-                    )
-                已驗證的IP.append(ip)
-                print("有效")
-                
-                # 把已驗證的ip存到檔案
-                with open("data/proxy_list.txt", 'w') as file:
-                    for ip in 已驗證的IP:
-                        file.write(ip + '\n')
+        if cpu線程 != None:
+            with concurrent.futures.ThreadPoolExecutor(max_workers = cpu線程) as executor:
+                future_to_ip = {executor.submit(驗證IP, ip): ip for ip in 待驗證的IP}
+                for future in concurrent.futures.as_completed(future_to_ip):
+                    ip = future_to_ip[future]
+            
+                    ip或無效 = future.result()
+                    if ip或無效 != "無效":
+                        已驗證的IP.append(ip或無效)
+
+            # 把已驗證的ip存到檔案
+            with open("data/proxy_list.txt", 'w') as file:
+                for ip in 已驗證的IP:
+                    file.write(ip + '\n')
                 file.close()
-            except:
-                print("無效")
-    
+        else:
+            # 舊寫法
+            for ip in 待驗證的IP:
+                ip或無效 = 驗證IP(ip)
+                if ip或無效 != "無效":
+                    已驗證的IP += ip或無效
+                    # 把已驗證的ip存到檔案
+                    with open("data/proxy_list.txt", 'w') as file:
+                        for ip1 in 已驗證的IP:
+                            file.write(ip1 + '\n')
+                    file.close()
+                
     return 已驗證的IP
+
+def 驗證IP(ip):
+    try:
+        result = requests.get('https://www.twse.com.tw/zh/index.html',proxies={'http': ip, 'https': ip},timeout= 3)
+        print(ip,"有效", sep = "--")
+        return ip
+    except:
+        print(ip,"無效", sep = "--")
+        return "無效"
 
 def 重新取得IP():
     print("正在重新取得IP...")
@@ -244,12 +264,13 @@ def 個股當日資料(西元年份, 月份, 日期, ProxyIP):
 今年年份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%Y"))
 本月月份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%m"))
 今天日期 = int(datetime.datetime.now(tz = 台灣時區).strftime("%d"))
+cpu線程 = os.cpu_count() # Returns None if the number of CPUs is indeterminable
 
 # 建立存檔案的資料夾
 if not os.path.exists("data/"):
     os.mkdir("data/")
 
-ProxyIP = 取得ProxyIP()
+ProxyIP = 取得ProxyIP(cpu線程)
 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP)
 print("正在合併資料...")
 合併csv檔("每月營收")
