@@ -18,6 +18,8 @@ def 取得ProxyIP():
             with open("data/proxy_list.txt", 'r') as file:
                 待驗證的IP = file.read().splitlines()
             file.close()
+        else:
+            os.open("data/proxy_list.txt", os.O_CREAT)
     
         if len(待驗證的IP) < 5:
             response = requests.get("https://www.sslproxies.org/")
@@ -90,10 +92,6 @@ def 合併csv檔(資料種類):
         df.to_csv("個股每日資料統計.csv")
 
 def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
-    # 建立存檔案的資料夾
-    if not os.path.exists("data/"):
-        os.mkdir("data/")
-
     print("正在取得每月營收資料...")
     for 年份 in range(2003, 今年年份 + 1):
         if 年份 != 今年年份:
@@ -246,6 +244,10 @@ def 個股當日資料(西元年份, 月份, 日期, ProxyIP):
 今年年份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%Y"))
 本月月份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%m"))
 今天日期 = int(datetime.datetime.now(tz = 台灣時區).strftime("%d"))
+
+# 建立存檔案的資料夾
+if not os.path.exists("data/"):
+    os.mkdir("data/")
 
 ProxyIP = 取得ProxyIP()
 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP)
