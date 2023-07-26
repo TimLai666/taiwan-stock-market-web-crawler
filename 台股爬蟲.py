@@ -258,50 +258,47 @@ def 儲存csv檔(df, 年份, 月份, 日期, 資料種類):
 def 合併csv檔(資料種類):
     要合併的檔案 = []
     if 資料種類 == "每月營收":
-        要合併的檔案 = glob.glob("data/*月營業收入統計.csv")
+        file_list = glob.glob("data/*月營業收入統計.csv")
         檔名 = "每月營業收入統計.csv"
     elif 資料種類 == "個股每日資料":
-        要合併的檔案 = glob.glob("data/*日個股資料.csv")
+        file_list = glob.glob("data/*日個股資料.csv")
         檔名 = "個股每日資料統計.csv"
-    
-    while len(要合併的檔案) != 1:
+    要合併的檔案 = list(map(lambda file: pd.read_csv(file, low_memory=False), file_list))
+
+    while len(要合併的檔案) > 1:
         with concurrent.futures.ThreadPoolExecutor() as 執行器:
             新檔案列表 = []
+            future_to_file = {}
             for i in range(0, len(要合併的檔案), 2):
                 if i + 1 < len(要合併的檔案):
-                    輸出檔案 = f"temp_{int(time.time_ns())}_{i//2}.csv"
-                    執行器.submit(兩兩合併, 要合併的檔案[i], 要合併的檔案[i+1], 輸出檔案)
-                    新檔案列表.append(輸出檔案)
+                    future = 執行器.submit(兩兩合併, 要合併的檔案[i], 要合併的檔案[i+1])
+                    future_to_file[future] = i
                 else:
                     新檔案列表.append(要合併的檔案[i])
-        執行器.shutdown(wait=True)
 
+        for future in concurrent.futures.as_completed(future_to_file):
+            index = future_to_file[future]
+            輸出檔案 = future.result()
+            新檔案列表.append(輸出檔案)
+            
         要合併的檔案 = 新檔案列表
 
-    shutil.move(要合併的檔案[0], 檔名)
-    df= pd.read_csv(檔名, low_memory = False)
+    df = 要合併的檔案[0]
     
     if 資料種類 == "每月營收":
         df = df.filter(
             ["公司代號", "公司名稱", "上月營收", "去年當月營收", "上月比較增減(%)", "去年同月增減(%)", "當月累計營收", "去年累計營收", "前期比較增減(%)", "年份", "月份", "年月"],axis = "columns"
             )
-        df.to_csv(檔名)
     elif 資料種類 == "個股每日資料":
         df = df.filter(
             ["公司代號", "公司名稱", "殖利率(%)", "股利年度", "本益比", "股價淨值比", "財報年/季", "年份", "月份", "年月日"],axis = "columns"
             )
-        df.to_csv(檔名)
+        
+    df.to_csv(檔名)
 
-def 兩兩合併(檔案1, 檔案2, 輸出檔案):
-    df1 = pd.read_csv(檔案1, low_memory = False)
-    df2 = pd.read_csv(檔案2, low_memory = False)
-    print(檔案1+","+檔案2)
+def 兩兩合併(df1, df2):
     合併後df = pd.concat([df1, df2], ignore_index=True)
-    合併後df.to_csv(輸出檔案)
-    if "temp_" in 檔案1:
-        os.remove(檔案1)
-    if "temp_" in 檔案2:
-        os.remove(檔案2)
+    return 合併後df
 
 # 建立存檔案的資料夾
 if not os.path.exists("data/"):
