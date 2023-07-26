@@ -150,7 +150,8 @@ def 當月營收(西元年份, 月份):
                     # 換ip
                     proxy_ip = 已驗證的IP.get()
                 else:
-                    重新取得IP()
+                    while 已驗證的IP.qsize() == 0:
+                        重新取得IP()
                     proxy_ip = 已驗證的IP.get()
 
         r.encoding = "big5"
@@ -212,7 +213,8 @@ def 個股當日資料(西元年份, 月份, 日期):
                     # 換ip
                     proxy_ip = 已驗證的IP.get()
                 else:
-                    重新取得IP()
+                    while 已驗證的IP.qsize() == 0:
+                        重新取得IP()
                     proxy_ip = 已驗證的IP.get()
 
         r.encoding = "utf-8"
@@ -226,9 +228,6 @@ def 個股當日資料(西元年份, 月份, 日期):
             df.columns = df.columns.droplevel(0)
             df.rename(columns = {"證券代號" : "公司代號", "證券名稱":"公司名稱"}, inplace=True)
             df.set_index('公司代號', inplace=True)
-
-            #橫軸索引 = df.index[(df[0] == "證券代號")][0]
-            #df.columns = df.iloc[橫軸索引]
             
             df["本益比"] = pd.to_numeric(df["本益比"], "coerce")
             df["殖利率(%)"] = pd.to_numeric(df["殖利率(%)"], "coerce")
