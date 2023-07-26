@@ -7,8 +7,9 @@ import os
 import glob
 import requests
 import re
-import random
 import concurrent.futures
+import shutil
+#import random
 
 def 取得ProxyIP():
     已驗證的IP = []
@@ -80,6 +81,8 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
             else:
                 for 月份 in range(1, 本月月份):
                     executor.submit(取得並儲存當月營收, 年份, 月份, ProxyIP)
+    print("正在合併每月營收資料...")
+    合併csv檔("每月營收")
 
     print("正在取得個股每日資料...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -94,6 +97,8 @@ def 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP):
                     _, 當月天數 = calendar.monthrange(年份, 月份)
                     for 日期 in range (1, 今天日期):
                         executor.submit(取得並儲存個股當日資料, 年份, 月份, 日期, ProxyIP)
+    print("正在合併個股每日資料...")
+    合併csv檔("個股每日資料")
 
 def 取得並儲存當月營收(年份, 月份, ProxyIP):
     df = 當月營收(年份, 月份, ProxyIP)
@@ -123,7 +128,7 @@ def 當月營收(西元年份, 月份, ProxyIP):
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
             try:
-                time.sleep(random.uniform(0.1, 7))
+                #time.sleep(random.uniform(0.1, 7))
                 r = requests.get(
                     url, headers = headers, proxies = {'http': f'{proxy_ip}', 'https': f'{proxy_ip}'}
                     )
@@ -180,7 +185,7 @@ def 個股當日資料(西元年份, 月份, 日期, ProxyIP):
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
             try:
-             time.sleep(random.uniform(0.1, 7))
+             #time.sleep(random.uniform(0.1, 7))
              r = requests.get(
                  url, headers = headers, proxies = {'http': f'{proxy_ip}', 'https': f'{proxy_ip}'}
                  )
@@ -235,24 +240,52 @@ def 儲存csv檔(df, 年份, 月份, 日期, 資料種類):
             print(年份, ",", 月份, ",", 日期)
 
 def 合併csv檔(資料種類):
+    要合併的檔案 = []
     if 資料種類 == "每月營收":
         要合併的檔案 = glob.glob("data/*月營業收入統計.csv")
-        df = pd.concat(
-            map(pd.read_csv, 要合併的檔案), ignore_index = True
-        )
-
-        # 去除不需要的東西
-        df = df.drop(["Unnamed: 0", "備註"],axis = "columns")
-
-        df.to_csv("每月營業收入統計.csv")
-
-    if 資料種類 == "個股每日資料":
+        檔名 = "每月營業收入統計.csv"
+    elif 資料種類 == "個股每日資料":
         要合併的檔案 = glob.glob("data/*日個股資料.csv")
-        df = pd.concat(
-            map(pd.read_csv, 要合併的檔案), ignore_index = True
-        )
-        
-        df.to_csv("個股每日資料統計.csv")
+        檔名 = "個股每日資料統計.csv"
+    
+    while len(要合併的檔案) != 1:
+        with concurrent.futures.ThreadPoolExecutor() as 執行器:
+            新檔案列表 = []
+            for i in range(0, len(要合併的檔案), 2):
+                if i + 1 < len(要合併的檔案):
+                    輸出檔案 = f"temp_{int(time.time_ns())}_{i//2}.csv"
+                    執行器.submit(兩兩合併, 要合併的檔案[i], 要合併的檔案[i+1], 輸出檔案)
+                    新檔案列表.append(輸出檔案)
+                else:
+                    新檔案列表.append(要合併的檔案[i])
+        執行器.shutdown(wait=True)
+
+        要合併的檔案 = 新檔案列表
+
+    shutil.move(要合併的檔案[0], 檔名)
+    df= pd.read_csv(檔名, low_memory = False)
+    
+    if 資料種類 == "每月營收":
+        df = df.filter(
+            ["公司代號", "公司名稱", "上月營收", "去年當月營收", "上月比較增減(%)", "去年同月增減(%)", "當月累計營收", "去年累計營收", "前期比較增減(%)", "年份", "月份", "年月"],axis = "columns"
+            )
+        df.to_csv(檔名)
+    elif 資料種類 == "個股每日資料":
+        df = df.filter(
+            ["公司代號", "公司名稱", "殖利率(%)", "股利年度", "本益比", "股價淨值比", "財報年/季", "年份", "月份", "年月日"],axis = "columns"
+            )
+        df.to_csv(檔名)
+
+def 兩兩合併(檔案1, 檔案2, 輸出檔案):
+    df1 = pd.read_csv(檔案1, low_memory = False)
+    df2 = pd.read_csv(檔案2, low_memory = False)
+    print(檔案1+","+檔案2)
+    合併後df = pd.concat([df1, df2], ignore_index=True)
+    合併後df.to_csv(輸出檔案)
+    if "temp_" in 檔案1:
+        os.remove(檔案1)
+    if "temp_" in 檔案2:
+        os.remove(檔案2)
 
 台灣時區 = datetime.timezone(datetime.timedelta(hours = 8))
 今年年份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%Y"))
@@ -265,8 +298,5 @@ if not os.path.exists("data/"):
 
 ProxyIP = 取得ProxyIP()
 取得歷史資料(今年年份, 本月月份, 今天日期, ProxyIP)
-print("正在合併資料...")
-合併csv檔("每月營收")
-合併csv檔("個股每日資料")
 print("資料更新成功")
 input("按enter鍵結束程式")
