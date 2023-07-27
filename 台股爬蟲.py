@@ -1,9 +1,8 @@
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count, Queue, Process, Value
 from bs4 import BeautifulSoup
 from io import StringIO
-from queue import Queue
 import pandas as pd
-import datetime, calendar
+import time, datetime, calendar
 import concurrent.futures
 import threading
 import requests
@@ -16,6 +15,8 @@ import re
 本月月份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%m"))
 今天日期 = int(datetime.datetime.now(tz = 台灣時區).strftime("%d"))
 已驗證的IP = Queue()
+IP用完 = Value("i", 0)
+停止重取IP = Value("b", False)
 
 def 驗證IP(ip):
     try:
@@ -27,57 +28,69 @@ def 驗證IP(ip):
         return "無效"
 
 def 取得ProxyIP():
-    待驗證的IP = []
-    while 已驗證的IP.qsize() < 1:
-        print("正在取得可用IP...")
-        if os.path.isfile("data/proxy_list.txt"):
-            with open("data/proxy_list.txt", 'r') as file:
-                待驗證的IP = file.read().splitlines()
-        else:
-            建立proxy表 = os.open("data/proxy_list.txt", os.O_CREAT)
-            os.close(建立proxy表)
+    if __name__ == "__main__":
+        待驗證的IP = []
+        while 已驗證的IP.empty():
+            print("正在取得可用IP...")
+            if os.path.isfile("data/proxy_list.txt"):
+                with open("data/proxy_list.txt", 'r') as file:
+                    待驗證的IP = file.read().splitlines()
+            else:
+                建立proxy表 = os.open("data/proxy_list.txt", os.O_CREAT)
+                os.close(建立proxy表)
     
-        if len(待驗證的IP) < 5:
-            response = requests.get("https://www.sslproxies.org/")
-            response1 = requests.get("https://free-proxy-list.net/")
-            response2 = requests.get("https://www.socks-proxy.net/")
-            response3 = requests.get("https://free-proxy-list.net/anonymous-proxy.html")
+            if len(待驗證的IP) < 5:
+                response = requests.get("https://www.sslproxies.org/")
+                response1 = requests.get("https://free-proxy-list.net/")
+                response2 = requests.get("https://www.socks-proxy.net/")
+                response3 = requests.get("https://free-proxy-list.net/anonymous-proxy.html")
         
-            待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response.text)  #「\d+」代表數字一個位數以上
-            待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response1.text)
-            待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response2.text)
-            待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response3.text)
+                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response.text)  #「\d+」代表數字一個位數以上
+                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response1.text)
+                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response2.text)
+                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response3.text)
 
             待驗證的IP = list(set(待驗證的IP)) # 清除重複的ip
 
-        print("正在驗證IP...")
+            print("正在驗證IP...")
 
-        # 使用多進程驗證IP
-        with concurrent.futures.ProcessPoolExecutor(cpu_count() * 10) as p:
-            驗證結果 = p.map(驗證IP, 待驗證的IP)
-        p.shutdown(wait = True)
+            # 使用多進程驗證IP
+            with concurrent.futures.ProcessPoolExecutor(cpu_count() * 8) as p:
+                驗證結果 = p.map(驗證IP, 待驗證的IP)
+            p.shutdown(wait = True)
 
-        for ip in 驗證結果:
-            if ip != "無效":
-                已驗證的IP.put(ip)
+            for ip in 驗證結果:
+                if ip != "無效":
+                    已驗證的IP.put(ip)
 
         with lock:
             # 把已驗證的ip存到檔案
             with open("data/proxy_list.txt", 'w') as file:
-                for i in range(1, 已驗證的IP.qsize() + 1):
-                    ip = 已驗證的IP.get()
-                    file.write(ip + '\n')
-                    已驗證的IP.put(ip)
+                已寫入 = []
+                while True:
+                    try:
+                        ip = 已驗證的IP.get_nowait()
+                        file.write(ip + '\n')
+                        已寫入.append(ip)
+                    except:
+                        for ipfile in 已寫入:
+                            已驗證的IP.put(ipfile)
+                        break
 
-def 重新取得IP():
-    if __name__ == "__main__":
-        print("正在重新取得IP...")
-        取得ProxyIP()
+def 重新取得IP(停止重取IP):
+    while not 停止重取IP:
+        if IP用完.value >= cpu_count():
+            print("正在重新取得IP...")
+            # 清空 IP用完
+            取得ProxyIP()
+            # 冷卻300秒
+            IP用完.value = 0
+            time.sleep(300)
     pass
 
 def 取得歷史資料():
     print("正在取得每月營收資料...")
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ProcessPoolExecutor(cpu_count() * 10) as executor:
         for 年份 in range(2003, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
@@ -85,24 +98,28 @@ def 取得歷史資料():
             else:
                 for 月份 in range(1, 本月月份):
                     executor.submit(取得並儲存當月營收, 年份, 月份)
-    executor.shutdown(wait = True)
-    print("正在合併每月營收資料...")
-    合併csv檔("每月營收")
+    executor.shutdown(wait = False)
 
     print("正在取得個股每日資料...")
-    with concurrent.futures.ThreadPoolExecutor() as executor1:
+    with concurrent.futures.ProcessPoolExecutor(cpu_count() * 10) as executor1:
         for 年份 in range(2006, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
                     _, 當月天數 = calendar.monthrange(年份, 月份)
                     for 日期 in range (1, 當月天數 + 1):
-                        executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
+                        if datetime.date(年份, 月份, 日期) != 5 and datetime.date(年份, 月份, 日期) != 6:
+                            executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
             else:
                 for 月份 in range(1, 本月月份 + 1):
                     _, 當月天數 = calendar.monthrange(年份, 月份)
                     for 日期 in range (1, 今天日期):
-                        executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
-    executor1.shutdown(wait = True)
+                        if datetime.date(年份, 月份, 日期) != 5 and datetime.date(年份, 月份, 日期) != 6:
+                            executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
+    executor1.shutdown(wait = False)
+
+    停止重取IP.value = True
+    print("正在合併每月營收資料...")
+    合併csv檔("每月營收")
     print("正在合併個股每日資料...")
     合併csv檔("個股每日資料")
 
@@ -128,9 +145,6 @@ def 當月營收(西元年份, 月份):
         # 偽瀏覽器
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
         
-        #if 已驗證的IP.empty() == True:
-        #    重新取得IP()
-        
         if 已驗證的IP:
             # 取出ip
             proxy_ip = 已驗證的IP.get()
@@ -147,13 +161,12 @@ def 當月營收(西元年份, 月份):
                 已驗證的IP.put(proxy_ip)
                 break
             except:
-                #if __name__ == "__main__":
                 if 已驗證的IP.empty() == False:
                     # 換ip
                     proxy_ip = 已驗證的IP.get()
-                else:
-                    while 已驗證的IP.qsize() == 0:
-                        重新取得IP()
+                elif 已驗證的IP.empty():
+                    IP用完.value +=1
+                    time.sleep(10)
                     proxy_ip = 已驗證的IP.get()
                 pass
         r.encoding = "big5"
@@ -176,6 +189,7 @@ def 當月營收(西元年份, 月份):
         df["月份"] = 月份
         df["年月"] = str(西元年份) + "/" + str(月份)
     else:
+        print("已有：", 西元年份, ",", 月份)
         df = pd.DataFrame({})
         df = df.iloc[0:0]
 
@@ -192,10 +206,6 @@ def 個股當日資料(西元年份, 月份, 日期):
         
         # 偽瀏覽器
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
-        
-        
-        #if 已驗證的IP.empty() == True:
-        #    重新取得IP()
 
         # 取出ip
         if 已驗證的IP:
@@ -213,13 +223,12 @@ def 個股當日資料(西元年份, 月份, 日期):
                 已驗證的IP.put(proxy_ip)
                 break
             except:
-                #if __name__ == "__main__":
                 if 已驗證的IP.empty() == False:
                     # 換ip
                     proxy_ip = 已驗證的IP.get()
-                else:
-                    while 已驗證的IP.qsize() == 0:
-                        重新取得IP()
+                elif 已驗證的IP.empty():
+                    IP用完.value = 0
+                    time.sleep(10)
                     proxy_ip = 已驗證的IP.get()
                 pass
 
@@ -246,7 +255,7 @@ def 個股當日資料(西元年份, 月份, 日期):
             df = pd.DataFrame({})
             df = df.iloc[0:0]
     else:
-        print(西元年份,月份,日期,"有了")
+        print("已有：", 西元年份, ",", 月份, ",",日期,)
         df = pd.DataFrame({})
         df = df.iloc[0:0]
 
@@ -256,10 +265,10 @@ def 儲存csv檔(df, 年份, 月份, 日期, 資料種類):
     if df.empty != True:
         if 資料種類 == "每月營收":
             df.to_csv("data/" + str(年份) + "年" + str(月份) + "月營業收入統計.csv")
-            print(年份, ",", 月份)
+            print("取得：", 年份, ",", 月份)
         elif 資料種類 == "個股每日資料":
             df.to_csv("data/" + str(年份) + "年" + str(月份) + "月"+ str(日期) + "日個股資料.csv")
-            print(年份, ",", 月份, ",", 日期)
+            print("取得：", 年份, ",", 月份, ",", 日期)
 
 def 合併csv檔(資料種類):
     要合併的檔案 = []
@@ -294,7 +303,7 @@ def 合併csv檔(資料種類):
     
     if 資料種類 == "每月營收":
         df = df.filter(
-            ["公司代號", "公司名稱", "上月營收", "去年當月營收", "上月比較增減(%)", "去年同月增減(%)", "當月累計營收", "去年累計營收", "前期比較增減(%)", "年份", "月份", "年月"],axis = "columns"
+            ["公司代號", "公司名稱", "當月營收", "上月營收", "去年當月營收", "上月比較增減(%)", "去年同月增減(%)", "當月累計營收", "去年累計營收", "前期比較增減(%)", "年份", "月份", "年月"],axis = "columns"
             )
     elif 資料種類 == "個股每日資料":
         df = df.filter(
@@ -309,11 +318,17 @@ def 兩兩合併(df1, df2):
 
 if __name__ == "__main__":
     lock = threading.Lock()
+
     # 建立存檔案的資料夾
     if not os.path.exists("data/"):
         os.mkdir("data/")
 
     取得ProxyIP()
+
+    p = Process(target = 重新取得IP, args = (停止重取IP,))
+    p.daemon = True
+    p.start()
+
     取得歷史資料()
     print("資料更新成功")
     input("按enter鍵結束程式")
