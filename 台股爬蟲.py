@@ -83,14 +83,14 @@ def 重新取得IP(停止重取IP):
             print("正在重新取得IP...")
             # 清空 IP用完
             取得ProxyIP()
-            # 冷卻300秒
+            # 冷卻30秒
             IP用完.value = 0
-            time.sleep(300)
+            time.sleep(30)
     pass
 
 def 取得歷史資料():
     print("正在取得每月營收資料...")
-    with concurrent.futures.ProcessPoolExecutor(cpu_count() * 10) as executor:
+    with concurrent.futures.ProcessPoolExecutor() as executor:
         for 年份 in range(2003, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
@@ -101,7 +101,7 @@ def 取得歷史資料():
     executor.shutdown(wait = False)
 
     print("正在取得個股每日資料...")
-    with concurrent.futures.ProcessPoolExecutor(cpu_count() * 10) as executor1:
+    with concurrent.futures.ThreadPoolExecutor() as executor1:
         for 年份 in range(2006, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
