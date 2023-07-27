@@ -1,21 +1,30 @@
+from multiprocessing import Pool, cpu_count
 from bs4 import BeautifulSoup
 from io import StringIO
 from queue import Queue
 import pandas as pd
-import time, datetime, calendar
+import datetime, calendar
 import concurrent.futures
+import threading
 import requests
-import shutil
 import glob
 import os
 import re
-#import random
 
 台灣時區 = datetime.timezone(datetime.timedelta(hours = 8))
 今年年份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%Y"))
 本月月份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%m"))
 今天日期 = int(datetime.datetime.now(tz = 台灣時區).strftime("%d"))
 已驗證的IP = Queue()
+
+def 驗證IP(ip):
+    try:
+        result = requests.get('https://www.twse.com.tw/zh/index.html',proxies={'http': ip, 'https': ip},timeout= 3)
+        print(ip,"有效", sep = "--")
+        return ip
+    except:
+        print(ip,"無效", sep = "--")
+        return "無效"
 
 def 取得ProxyIP():
     待驗證的IP = []
@@ -42,40 +51,29 @@ def 取得ProxyIP():
             待驗證的IP = list(set(待驗證的IP)) # 清除重複的ip
 
         print("正在驗證IP...")
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_ip = {executor.submit(驗證IP, ip): ip for ip in 待驗證的IP}
-            for future in concurrent.futures.as_completed(future_to_ip):
-                ip = future_to_ip[future]
-           
-                ip或無效 = future.result()
-                if ip或無效 != "無效":
-                    已驗證的IP.put(ip或無效)
 
-        # 把已驗證的ip存到檔案
-        with open("data/proxy_list.txt", 'w') as file:
-            for i in range(1, 已驗證的IP.qsize() + 1):
-                ip = 已驗證的IP.get()
-                file.write(ip + '\n')
+        # 使用多進程驗證IP
+        with concurrent.futures.ProcessPoolExecutor(cpu_count() * 10) as p:
+            驗證結果 = p.map(驗證IP, 待驗證的IP)
+        p.shutdown(wait = True)
+
+        for ip in 驗證結果:
+            if ip != "無效":
                 已驗證的IP.put(ip)
-        
-                
-    #return 已驗證的IP
 
-def 驗證IP(ip):
-    try:
-        result = requests.get('https://www.twse.com.tw/zh/index.html',proxies={'http': ip, 'https': ip},timeout= 3)
-        print(ip,"有效", sep = "--")
-        return ip
-    except:
-        print(ip,"無效", sep = "--")
-        return "無效"
+        with lock:
+            # 把已驗證的ip存到檔案
+            with open("data/proxy_list.txt", 'w') as file:
+                for i in range(1, 已驗證的IP.qsize() + 1):
+                    ip = 已驗證的IP.get()
+                    file.write(ip + '\n')
+                    已驗證的IP.put(ip)
 
 def 重新取得IP():
-    print("正在重新取得IP...")
-    with open("data/proxy_list.txt", 'w') as file:
-        file.write("")
-
-    取得ProxyIP()
+    if __name__ == "__main__":
+        print("正在重新取得IP...")
+        取得ProxyIP()
+    pass
 
 def 取得歷史資料():
     print("正在取得每月營收資料...")
@@ -87,22 +85,24 @@ def 取得歷史資料():
             else:
                 for 月份 in range(1, 本月月份):
                     executor.submit(取得並儲存當月營收, 年份, 月份)
+    executor.shutdown(wait = True)
     print("正在合併每月營收資料...")
     合併csv檔("每月營收")
 
     print("正在取得個股每日資料...")
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor1:
         for 年份 in range(2006, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
                     _, 當月天數 = calendar.monthrange(年份, 月份)
                     for 日期 in range (1, 當月天數 + 1):
-                        executor.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
+                        executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
             else:
                 for 月份 in range(1, 本月月份 + 1):
                     _, 當月天數 = calendar.monthrange(年份, 月份)
                     for 日期 in range (1, 今天日期):
-                        executor.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
+                        executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
+    executor1.shutdown(wait = True)
     print("正在合併個股每日資料...")
     合併csv檔("個股每日資料")
 
@@ -128,11 +128,12 @@ def 當月營收(西元年份, 月份):
         # 偽瀏覽器
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
         
-        if 已驗證的IP.empty() == True:
-            重新取得IP()
-
-        # 取出ip
-        proxy_ip = 已驗證的IP.get()
+        #if 已驗證的IP.empty() == True:
+        #    重新取得IP()
+        
+        if 已驗證的IP:
+            # 取出ip
+            proxy_ip = 已驗證的IP.get()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
@@ -146,6 +147,7 @@ def 當月營收(西元年份, 月份):
                 已驗證的IP.put(proxy_ip)
                 break
             except:
+                #if __name__ == "__main__":
                 if 已驗證的IP.empty() == False:
                     # 換ip
                     proxy_ip = 已驗證的IP.get()
@@ -153,7 +155,7 @@ def 當月營收(西元年份, 月份):
                     while 已驗證的IP.qsize() == 0:
                         重新取得IP()
                     proxy_ip = 已驗證的IP.get()
-
+                pass
         r.encoding = "big5"
 
         dfs = pd.read_html(StringIO(r.text), encoding = "big5")
@@ -191,11 +193,13 @@ def 個股當日資料(西元年份, 月份, 日期):
         # 偽瀏覽器
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
         
-        if 已驗證的IP.empty() == True:
-            重新取得IP()
+        
+        #if 已驗證的IP.empty() == True:
+        #    重新取得IP()
 
         # 取出ip
-        proxy_ip = 已驗證的IP.get()
+        if 已驗證的IP:
+            proxy_ip = 已驗證的IP.get()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
@@ -209,6 +213,7 @@ def 個股當日資料(西元年份, 月份, 日期):
                 已驗證的IP.put(proxy_ip)
                 break
             except:
+                #if __name__ == "__main__":
                 if 已驗證的IP.empty() == False:
                     # 換ip
                     proxy_ip = 已驗證的IP.get()
@@ -216,6 +221,7 @@ def 個股當日資料(西元年份, 月份, 日期):
                     while 已驗證的IP.qsize() == 0:
                         重新取得IP()
                     proxy_ip = 已驗證的IP.get()
+                pass
 
         r.encoding = "utf-8"
 
@@ -240,6 +246,7 @@ def 個股當日資料(西元年份, 月份, 日期):
             df = pd.DataFrame({})
             df = df.iloc[0:0]
     else:
+        print(西元年份,月份,日期,"有了")
         df = pd.DataFrame({})
         df = df.iloc[0:0]
 
@@ -274,6 +281,7 @@ def 合併csv檔(資料種類):
                     future_to_file[future] = i
                 else:
                     新檔案列表.append(要合併的檔案[i])
+        執行器.shutdown(wait = True)
 
         for future in concurrent.futures.as_completed(future_to_file):
             index = future_to_file[future]
@@ -299,11 +307,13 @@ def 兩兩合併(df1, df2):
     合併後df = pd.concat([df1, df2], ignore_index=True)
     return 合併後df
 
-# 建立存檔案的資料夾
-if not os.path.exists("data/"):
-    os.mkdir("data/")
+if __name__ == "__main__":
+    lock = threading.Lock()
+    # 建立存檔案的資料夾
+    if not os.path.exists("data/"):
+        os.mkdir("data/")
 
-取得ProxyIP()
-取得歷史資料()
-print("資料更新成功")
-input("按enter鍵結束程式")
+    取得ProxyIP()
+    取得歷史資料()
+    print("資料更新成功")
+    input("按enter鍵結束程式")
