@@ -295,7 +295,6 @@ def 合併csv檔(資料種類):
                     future_to_file[future] = i
                 else:
                     新檔案列表.append(要合併的檔案[i])
-        執行器.shutdown(wait = True)
 
         for future in concurrent.futures.as_completed(future_to_file):
             index = future_to_file[future]
