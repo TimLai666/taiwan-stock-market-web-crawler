@@ -30,7 +30,7 @@ def 驗證IP(ip):
 def 取得ProxyIP():
         待驗證的IP = []
         while 已驗證的IP.empty():
-            print("正在取得可用IP...")
+            print("正在取得可用IP（可能重複數次）...")
             if os.path.isfile("data/proxy_list.txt"):
                 with open("data/proxy_list.txt", 'r') as file:
                     待驗證的IP = file.read().splitlines()
@@ -38,7 +38,7 @@ def 取得ProxyIP():
                 建立proxy表 = os.open("data/proxy_list.txt", os.O_CREAT)
                 os.close(建立proxy表)
     
-            if len(待驗證的IP) < 5:
+            if len(待驗證的IP) < 10:
                 response = requests.get("https://www.sslproxies.org/", timeout = 3)
                 response1 = requests.get("https://free-proxy-list.net/", timeout = 3)
                 response2 = requests.get("https://www.socks-proxy.net/", timeout = 3)
@@ -54,7 +54,7 @@ def 取得ProxyIP():
             print("正在驗證IP...")
 
             # 使用多進程驗證IP
-            with concurrent.futures.ProcessPoolExecutor(cpu_count() * 8) as p:
+            with concurrent.futures.ProcessPoolExecutor(cpu_count() * 10) as p:
                 驗證結果 = p.map(驗證IP, 待驗證的IP)
             p.shutdown(wait = True)
 
@@ -84,7 +84,7 @@ def 重新取得IP():
             取得ProxyIP()
             # 冷卻30秒
             IP用完 = 0
-            time.sleep(30)
+            time.sleep(20)
     pass
 
 def 取得歷史資料():
@@ -159,7 +159,7 @@ def 當月營收(西元年份, 月份):
                     break
                 except:
                     IP用完 += 1
-                    time.sleep(10)
+                    time.sleep(40)
 
             try:
                 #time.sleep(random.uniform(0.1, 7))
@@ -221,7 +221,7 @@ def 個股當日資料(西元年份, 月份, 日期):
                     break
                 except:
                     IP用完 += 1
-                    time.sleep(10)
+                    time.sleep(40)
 
             try:
                 #time.sleep(random.uniform(0.1, 7))
