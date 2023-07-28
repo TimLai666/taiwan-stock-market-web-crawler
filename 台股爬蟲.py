@@ -55,7 +55,7 @@ def 取得ProxyIP():
             print("正在驗證IP...")
 
             # 使用多進程驗證IP
-            with concurrent.futures.ProcessPoolExecutor(cpu_count()*8) as p:
+            with concurrent.futures.ThreadPoolExecutor() as p:
                 驗證結果 = p.map(驗證IP, 待驗證的IP)
             p.shutdown(wait = True)
 
@@ -90,7 +90,7 @@ def 重新取得IP(停止重取IP):
 
 def 取得歷史資料():
     print("正在取得每月營收資料...")
-    with concurrent.futures.ProcessPoolExecutor(cpu_count()*8) as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
         for 年份 in range(2003, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
@@ -103,7 +103,7 @@ def 取得歷史資料():
     executor.shutdown(wait = True)
 
     print("正在取得個股每日資料...")
-    with concurrent.futures.ProcessPoolExecutor(cpu_count()*8) as executor1:
+    with concurrent.futures.ThreadPoolExecutor() as executor1:
         for 年份 in range(2006, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
