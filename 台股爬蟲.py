@@ -176,7 +176,10 @@ def 當月營收(西元年份, 月份):
                 elif 已驗證的IP.empty():
                     IP用完 += 1
                     time.sleep(10)
-                    proxy_ip = 已驗證的IP.get()
+                    try:
+                        proxy_ip = 已驗證的IP.get_nowait()
+                    except:
+                        pass
                 pass
         r.encoding = "big5"
 
@@ -222,7 +225,10 @@ def 個股當日資料(西元年份, 月份, 日期):
         else:
             IP用完 += 1
             time.sleep(10)
-            proxy_ip = 已驗證的IP.get()
+            try:
+                proxy_ip = 已驗證的IP.get_nowait()
+            except:
+                pass
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
