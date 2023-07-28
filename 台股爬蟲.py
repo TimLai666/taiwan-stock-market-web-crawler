@@ -55,7 +55,7 @@ def 取得ProxyIP():
             print("正在驗證IP...")
 
             # 使用多進程驗證IP
-            with concurrent.futures.ProcessPoolExecutor(cpu_count() * 8) as p:
+            with concurrent.futures.ProcessPoolExecutor() as p:
                 驗證結果 = p.map(驗證IP, 待驗證的IP)
             p.shutdown(wait = True)
 
@@ -79,7 +79,7 @@ def 取得ProxyIP():
 
 def 重新取得IP(停止重取IP):
     while not 停止重取IP:
-        if IP用完.value >= cpu_count():
+        if IP用完.value >= 4:
             print("正在重新取得IP...")
             # 清空 IP用完
             取得ProxyIP()
