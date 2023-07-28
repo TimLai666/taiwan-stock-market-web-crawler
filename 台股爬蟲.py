@@ -62,7 +62,6 @@ def 取得ProxyIP():
                 if ip != "無效":
                     已驗證的IP.put(ip)
 
-        #with lock:
             # 把已驗證的ip存到檔案
             with open("data/proxy_list.txt", 'w') as file:
                 已寫入 = []
@@ -99,7 +98,6 @@ def 取得歷史資料():
                 for 月份 in range(1, 本月月份):
                     #取得並儲存當月營收(年份, 月份)
                     executor.submit(取得並儲存當月營收, 年份, 月份)
-    #executor.shutdown(wait = True)
 
     print("正在取得個股每日資料...")
     with concurrent.futures.ThreadPoolExecutor() as executor1:
@@ -120,7 +118,6 @@ def 取得歷史資料():
                         if date_obj.weekday() != 5 and date_obj.weekday() != 6:
                             #取得並儲存個股當日資料(年份, 月份, 日期)
                             executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
-        #executor1.shutdown(wait = True)
 
     停止重取IP = True
     print("正在合併每月營收資料...")
