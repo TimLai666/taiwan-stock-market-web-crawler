@@ -79,7 +79,7 @@ def 取得ProxyIP():
 
 def 重新取得IP(停止重取IP):
     while not 停止重取IP:
-        if IP用完.value >= 4:
+        if IP用完.value >= 1:
             print("正在重新取得IP...")
             # 清空 IP用完
             取得ProxyIP()
