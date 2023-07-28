@@ -63,7 +63,7 @@ def 取得ProxyIP():
                 if ip != "無效":
                     已驗證的IP.put(ip)
 
-        with lock:
+        #with lock:
             # 把已驗證的ip存到檔案
             with open("data/proxy_list.txt", 'w') as file:
                 已寫入 = []
@@ -321,7 +321,7 @@ def 兩兩合併(df1, df2):
     return 合併後df
 
 if __name__ == "__main__":
-    lock = threading.Lock()
+    #lock = threading.Lock()
 
     # 建立存檔案的資料夾
     if not os.path.exists("data/"):
