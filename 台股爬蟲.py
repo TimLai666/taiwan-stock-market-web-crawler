@@ -150,16 +150,17 @@ def 當月營收(西元年份, 月份):
         # 偽瀏覽器
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
         
-        if 已驗證的IP:
-            # 取出ip
-            proxy_ip = 已驗證的IP.get()
-        else:
-            IP用完 += 1
-            time.sleep(10)
-            proxy_ip = 已驗證的IP.get()
-
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
+            while True:
+                try:
+                    # 取出ip
+                    proxy_ip = 已驗證的IP.get_nowait()
+                    break
+                except:
+                    IP用完 += 1
+                    time.sleep(10)
+
             try:
                 #time.sleep(random.uniform(0.1, 7))
                 r = requests.get(
@@ -170,17 +171,8 @@ def 當月營收(西元年份, 月份):
                 已驗證的IP.put(proxy_ip)
                 break
             except:
-                if 已驗證的IP.empty() == False:
-                    # 換ip
-                    proxy_ip = 已驗證的IP.get()
-                elif 已驗證的IP.empty():
-                    IP用完 += 1
-                    time.sleep(10)
-                    try:
-                        proxy_ip = 已驗證的IP.get_nowait()
-                    except:
-                        pass
                 pass
+
         r.encoding = "big5"
 
         dfs = pd.read_html(StringIO(r.text), encoding = "big5")
@@ -219,19 +211,17 @@ def 個股當日資料(西元年份, 月份, 日期):
         # 偽瀏覽器
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
 
-        if 已驗證的IP:
-            # 取出ip
-            proxy_ip = 已驗證的IP.get()
-        else:
-            IP用完 += 1
-            time.sleep(10)
-            try:
-                proxy_ip = 已驗證的IP.get_nowait()
-            except:
-                pass
-
         # 下載該年月的網站，並用pandas轉換成 dataframe
         while True:
+            while True:
+                try:
+                    # 取出ip
+                    proxy_ip = 已驗證的IP.get_nowait()
+                    break
+                except:
+                    IP用完 += 1
+                    time.sleep(10)
+
             try:
                 #time.sleep(random.uniform(0.1, 7))
                 r = requests.get(
@@ -242,13 +232,6 @@ def 個股當日資料(西元年份, 月份, 日期):
                 已驗證的IP.put(proxy_ip)
                 break
             except:
-                if 已驗證的IP.empty() == False:
-                    # 換ip
-                    proxy_ip = 已驗證的IP.get()
-                elif 已驗證的IP.empty():
-                    IP用完 += 1
-                    time.sleep(10)
-                    proxy_ip = 已驗證的IP.get()
                 pass
 
         r.encoding = "utf-8"
