@@ -76,6 +76,7 @@ def 取得ProxyIP():
                         break
 
 def 重新取得IP():
+    global IP用完
     while not 停止重取IP:
         if IP用完 >= 1:
             print("正在重新取得IP...")
@@ -119,6 +120,7 @@ def 取得歷史資料():
                             #取得並儲存個股當日資料(年份, 月份, 日期)
                             executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
 
+    global 停止重取IP
     停止重取IP = True
     print("正在合併每月營收資料...")
     合併csv檔("每月營收")
@@ -134,6 +136,7 @@ def 取得並儲存個股當日資料(年份, 月份, 日期):
     儲存csv檔(df, 年份, 月份, 日期, "個股每日資料")
 
 def 當月營收(西元年份, 月份):
+    global IP用完
     if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月營業收入統計.csv"):
         # 假如是西元，轉成民國
         if 西元年份 > 1990:
@@ -197,6 +200,7 @@ def 當月營收(西元年份, 月份):
     return df
 
 def 個股當日資料(西元年份, 月份, 日期):
+    global IP用完
     if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月"+ str(日期) +"日個股資料.csv"):
         if len(str(月份)) < 2:
             二位數月份 = "0" + str(月份)
