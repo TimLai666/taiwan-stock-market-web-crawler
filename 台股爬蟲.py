@@ -4,6 +4,7 @@ from io import StringIO
 import pandas as pd
 import time, datetime, calendar
 import concurrent.futures
+import multiprocessing
 import threading
 import requests
 import glob
@@ -320,7 +321,7 @@ def 兩兩合併(df1, df2):
     return 合併後df
 
 if __name__ == "__main__":
-    #lock = threading.Lock()
+    multiprocessing.freeze_support()
 
     # 建立存檔案的資料夾
     if not os.path.exists("data/"):
