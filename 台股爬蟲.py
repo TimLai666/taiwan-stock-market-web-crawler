@@ -56,7 +56,6 @@ def 取得ProxyIP():
             # 使用多進程驗證IP
             with concurrent.futures.ProcessPoolExecutor(cpu_count() * 12) as p:
                 驗證結果 = p.map(驗證IP, 待驗證的IP)
-            p.shutdown(wait = True)
 
             for ip in 驗證結果:
                 if ip != "無效":
@@ -93,11 +92,9 @@ def 取得歷史資料():
         for 年份 in range(2003, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
-                    #取得並儲存當月營收(年份, 月份)
                     executor.submit(取得並儲存當月營收, 年份, 月份)
             else:
                 for 月份 in range(1, 本月月份):
-                    #取得並儲存當月營收(年份, 月份)
                     executor.submit(取得並儲存當月營收, 年份, 月份)
 
     print("正在合併每月營收資料...")
@@ -110,18 +107,22 @@ def 取得歷史資料():
                 for 月份 in range(1, 12 + 1):
                     _, 當月天數 = calendar.monthrange(年份, 月份)
                     for 日期 in range (1, 當月天數 + 1):
-                        date_obj = datetime.date(年份, 月份, 日期)
-                        if date_obj.weekday() != 5 and date_obj.weekday() != 6:
-                            #取得並儲存個股當日資料(年份, 月份, 日期)
+                        date_obj = datetime.date(年份, 月份,日期)
+                        if date_obj.strftime('%A') != "Saturday" and date_obj.strftime('%A') != "Sunday":
                             executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
             else:
                 for 月份 in range(1, 本月月份 + 1):
                     _, 當月天數 = calendar.monthrange(年份, 月份)
-                    for 日期 in range (1, 今天日期 + 1):
-                        date_obj = datetime.date(年份, 月份, 日期)
-                        if date_obj.weekday() != 5 and date_obj.weekday() != 6:
-                            #取得並儲存個股當日資料(年份, 月份, 日期)
-                            executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
+                    if 月份 != 本月月份:
+                        for 日期 in range (1, 當月天數 + 1):
+                            date_obj = datetime.date(年份, 月份,日期)
+                            if date_obj.strftime('%A') != "Saturday" and date_obj.strftime('%A') != "Sunday":
+                                executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
+                    else:
+                        for 日期 in range (1, 今天日期 + 1):
+                            date_obj = datetime.date(年份, 月份,日期)
+                            if date_obj.strftime('%A') != "Saturday" and date_obj.strftime('%A') != "Sunday":
+                                executor1.submit(取得並儲存個股當日資料, 年份, 月份, 日期)
 
     global 停止重取IP
     停止重取IP = True
@@ -204,10 +205,8 @@ def 當月營收(西元年份, 月份):
 def 個股當日資料(西元年份, 月份, 日期):
     global IP用完
     if not os.path.isfile("data/" + str(西元年份) + "年" + str(月份) + "月"+ str(日期) +"日個股資料.csv"):
-        if len(str(月份)) < 2:
-            二位數月份 = "0" + str(月份)
-        else:
-            二位數月份 = str(月份)
+
+        二位數月份 = str(月份).zfill(2)
 
         url = "https://www.twse.com.tw/rwd/zh/afterTrading/BWIBBU_d?date=" + str(西元年份) + 二位數月份 + str(日期) + "&selectType=ALL&response=html"
         
