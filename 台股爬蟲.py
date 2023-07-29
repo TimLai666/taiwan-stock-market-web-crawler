@@ -61,7 +61,7 @@ def 取得ProxyIP():
                 print("正在驗證IP...")
 
                 # 使用多進程驗證IP
-                with concurrent.futures.ThreadPoolExecutor(64) as p:
+                with concurrent.futures.ThreadPoolExecutor() as p:
                     驗證結果 = p.map(驗證IP, 待驗證的IP)
 
                 for ip in 驗證結果:
@@ -96,7 +96,7 @@ def 重新取得IP():
 
 def 取得歷史資料():
     print("正在取得每月營收資料...")
-    with concurrent.futures.ThreadPoolExecutor(64) as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
         for 年份 in range(2003, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
@@ -109,7 +109,7 @@ def 取得歷史資料():
     合併csv檔("每月營收")
 
     print("正在取得個股每日資料...")
-    with concurrent.futures.ThreadPoolExecutor(64) as executor1:
+    with concurrent.futures.ThreadPoolExecutor() as executor1:
         for 年份 in range(2006, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
@@ -299,7 +299,7 @@ def 合併csv檔(資料種類):
     要合併的檔案 = list(map(lambda file: pd.read_csv(file, low_memory=False), file_list))
 
     while len(要合併的檔案) > 1:
-        with concurrent.futures.ThreadPoolExecutor(64) as 執行器:
+        with concurrent.futures.ThreadPoolExecutor() as 執行器:
             新檔案列表 = []
             future_to_file = {}
             for i in range(0, len(要合併的檔案), 2):
