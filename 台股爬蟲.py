@@ -1,4 +1,3 @@
-from multiprocessing import cpu_count, Queue, Process, Value
 from bs4 import BeautifulSoup
 from io import StringIO
 import pandas as pd
@@ -7,6 +6,7 @@ import concurrent.futures
 import multiprocessing
 import threading
 import requests
+import queue
 import glob
 import os
 import re
@@ -15,86 +15,88 @@ import re
 今年年份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%Y"))
 本月月份 = int(datetime.datetime.now(tz = 台灣時區).strftime("%m"))
 今天日期 = int(datetime.datetime.now(tz = 台灣時區).strftime("%d"))
-已驗證的IP = Queue()
+已驗證的IP = queue.Queue()
 IP用完 = 0
 停止重取IP = False
 
 def 驗證IP(ip):
     try:
         result = requests.get('https://www.twse.com.tw/zh/index.html',proxies={'http': ip, 'https': ip},timeout= 3)
-        print(ip,"有效", sep = "--")
+        #print(ip,"有效", sep = "--")
         return ip
     except:
-        print(ip,"無效", sep = "--")
+        #print(ip,"無效", sep = "--")
         return "無效"
 
 def 取得ProxyIP():
-        待驗證的IP = []
-        while 已驗證的IP.empty():
-            print("正在取得可用IP（可能重複數次）...")
-            if os.path.isfile("data/proxy_list.txt"):
-                with open("data/proxy_list.txt", 'r') as file:
-                    待驗證的IP = file.read().splitlines()
-            else:
-                建立proxy表 = os.open("data/proxy_list.txt", os.O_CREAT)
-                os.close(建立proxy表)
-    
-            if len(待驗證的IP) < 10:
-                while True:
-                    try:
-                        response = requests.get("https://www.sslproxies.org/", timeout = 3)
-                        response1 = requests.get("https://free-proxy-list.net/", timeout = 3)
-                        response2 = requests.get("https://www.socks-proxy.net/", timeout = 3)
-                        response3 = requests.get("https://free-proxy-list.net/anonymous-proxy.html", timeout = 3)
-                        break
-                    except:
-                        pass
-                    
-                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response.text)  #「\d+」代表數字一個位數以上
-                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response1.text)
-                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response2.text)
-                待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response3.text)
+        while 停止重取IP == False:
+            待驗證的IP = []
+            while 已驗證的IP.empty():
+                print("正在取得可用IP（可能重複數次）...")
+                if os.path.isfile("data/proxy_list.txt"):
+                    with open("data/proxy_list.txt", 'r') as file:
+                        待驗證的IP = file.read().splitlines()
+                else:
+                    建立proxy表 = os.open("data/proxy_list.txt", os.O_CREAT)
+                    os.close(建立proxy表)
+        
+                if len(待驗證的IP) < 10:
+                    while True:
+                        try:
+                            response = requests.get("https://www.sslproxies.org/", timeout = 3)
+                            response1 = requests.get("https://free-proxy-list.net/", timeout = 3)
+                            response2 = requests.get("https://www.socks-proxy.net/", timeout = 3)
+                            response3 = requests.get("https://free-proxy-list.net/anonymous-proxy.html", timeout = 3)
+                            break
+                        except:
+                            pass
+                        
+                    待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response.text)  #「\d+」代表數字一個位數以上
+                    待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response1.text)
+                    待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response2.text)
+                    待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response3.text)
 
-            待驗證的IP = list(set(待驗證的IP)) # 清除重複的ip
+                待驗證的IP = list(set(待驗證的IP)) # 清除重複的ip
 
-            print("正在驗證IP...")
+                print("正在驗證IP...")
 
-            # 使用多進程驗證IP
-            with concurrent.futures.ProcessPoolExecutor(cpu_count() * 12) as p:
-                驗證結果 = p.map(驗證IP, 待驗證的IP)
+                # 使用多進程驗證IP
+                with concurrent.futures.ThreadPoolExecutor(64) as p:
+                    驗證結果 = p.map(驗證IP, 待驗證的IP)
 
-            for ip in 驗證結果:
-                if ip != "無效":
-                    已驗證的IP.put(ip)
+                for ip in 驗證結果:
+                    if ip != "無效":
+                        已驗證的IP.put(ip)
 
-            # 把已驗證的ip存到檔案
-            with open("data/proxy_list.txt", 'w') as file:
-                已寫入 = []
-                while True:
-                    try:
-                        ip = 已驗證的IP.get_nowait()
-                        file.write(ip + '\n')
-                        已寫入.append(ip)
-                    except:
-                        for ipfile in 已寫入:
-                            已驗證的IP.put(ipfile)
-                        break
+                with lock:
+                    # 把已驗證的ip存到檔案
+                    with open("data/proxy_list.txt", 'w') as file:
+                        已寫入 = []
+                        while True:
+                            try:
+                                ip = 已驗證的IP.get_nowait()
+                                file.write(ip + '\n')
+                                已寫入.append(ip)
+                            except:
+                                for ipfile in 已寫入:
+                                    已驗證的IP.put(ipfile)
+                                break
 
 def 重新取得IP():
     global IP用完
     while not 停止重取IP:
-        if IP用完 >= 2:
+        if IP用完 >= 1:
             print("正在重新取得IP...")
-            # 清空 IP用完
             取得ProxyIP()
-            # 冷卻30秒
-            IP用完 = 0
-            time.sleep(30)
+
+            time.sleep(1)
+            with lock:
+                IP用完 = 0
     pass
 
 def 取得歷史資料():
     print("正在取得每月營收資料...")
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(64) as executor:
         for 年份 in range(2003, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
@@ -107,7 +109,7 @@ def 取得歷史資料():
     合併csv檔("每月營收")
 
     print("正在取得個股每日資料...")
-    with concurrent.futures.ThreadPoolExecutor() as executor1:
+    with concurrent.futures.ThreadPoolExecutor(64) as executor1:
         for 年份 in range(2006, 今年年份 + 1):
             if 年份 != 今年年份:
                 for 月份 in range(1, 12 + 1):
@@ -164,11 +166,13 @@ def 當月營收(西元年份, 月份):
             while True:
                 try:
                     # 取出ip
-                    proxy_ip = 已驗證的IP.get_nowait()
+                    with lock:
+                        proxy_ip = 已驗證的IP.get_nowait()
                     break
                 except:
-                    IP用完 += 1
-                    time.sleep(40)
+                    with lock:
+                        IP用完 += 1
+                    time.sleep(20)
 
             try:
                 #time.sleep(random.uniform(0.1, 7))
@@ -177,7 +181,8 @@ def 當月營收(西元年份, 月份):
                     )
                 
                 # 把ip放回去
-                已驗證的IP.put(proxy_ip)
+                with lock:
+                    已驗證的IP.put(proxy_ip)
                 break
             except:
                 pass
@@ -224,11 +229,13 @@ def 個股當日資料(西元年份, 月份, 日期):
             while True:
                 try:
                     # 取出ip
-                    proxy_ip = 已驗證的IP.get_nowait()
+                    with lock:
+                        proxy_ip = 已驗證的IP.get_nowait()
                     break
                 except:
-                    IP用完 += 1
-                    time.sleep(40)
+                    with lock:
+                        IP用完 += 1
+                    time.sleep(20)
 
             try:
                 #time.sleep(random.uniform(0.1, 7))
@@ -237,7 +244,8 @@ def 個股當日資料(西元年份, 月份, 日期):
                     )
                 
                 # 把ip放回去
-                已驗證的IP.put(proxy_ip)
+                with lock:
+                    已驗證的IP.put(proxy_ip)
                 break
             except:
                 pass
@@ -291,7 +299,7 @@ def 合併csv檔(資料種類):
     要合併的檔案 = list(map(lambda file: pd.read_csv(file, low_memory=False), file_list))
 
     while len(要合併的檔案) > 1:
-        with concurrent.futures.ThreadPoolExecutor() as 執行器:
+        with concurrent.futures.ThreadPoolExecutor(64) as 執行器:
             新檔案列表 = []
             future_to_file = {}
             for i in range(0, len(要合併的檔案), 2):
@@ -327,14 +335,15 @@ def 兩兩合併(df1, df2):
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
+    lock = threading.Lock()
 
     # 建立存檔案的資料夾
     if not os.path.exists("data/"):
         os.mkdir("data/")
 
-    取得ProxyIP()
+    #取得ProxyIP()
 
-    p = threading.Thread(target = 重新取得IP)
+    p = threading.Thread(target = 取得ProxyIP)
     p.daemon = True
     p.start()
 
