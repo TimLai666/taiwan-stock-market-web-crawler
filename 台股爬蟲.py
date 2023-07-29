@@ -40,11 +40,16 @@ def 取得ProxyIP():
                 os.close(建立proxy表)
     
             if len(待驗證的IP) < 10:
-                response = requests.get("https://www.sslproxies.org/", timeout = 3)
-                response1 = requests.get("https://free-proxy-list.net/", timeout = 3)
-                response2 = requests.get("https://www.socks-proxy.net/", timeout = 3)
-                response3 = requests.get("https://free-proxy-list.net/anonymous-proxy.html", timeout = 3)
-        
+                while True:
+                    try:
+                        response = requests.get("https://www.sslproxies.org/", timeout = 3)
+                        response1 = requests.get("https://free-proxy-list.net/", timeout = 3)
+                        response2 = requests.get("https://www.socks-proxy.net/", timeout = 3)
+                        response3 = requests.get("https://free-proxy-list.net/anonymous-proxy.html", timeout = 3)
+                        break
+                    except:
+                        pass
+                    
                 待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response.text)  #「\d+」代表數字一個位數以上
                 待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response1.text)
                 待驗證的IP += re.findall('\d+\.\d+\.\d+\.\d+:\d+', response2.text)
